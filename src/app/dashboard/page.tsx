@@ -1,18 +1,30 @@
 import { AddTodoComponent, Todo, TodoComponent } from "../todos";
 import {db} from "~/server/db";
 import {revalidatePath} from "next/cache";
+import {auth} from "@clerk/nextjs";
 
 export default async function HomePage() {
-  const todos: Todo[] = await db.todo.findMany();
+  const { userId} = auth();
+
+  if (!userId) throw new Error("No user id");
+
+  const todos: Todo[] = await db.todo.findMany({ where: { userId } });
+
   return (
     <main>
       <h1 className="todos-title">todos</h1>
       <div className="todos-card">
         <AddTodoComponent addTodo={async title => {
             "use server"
+
+            const { userId} = auth();
+
+            if (!userId) throw new Error("No user id");
+
             await db.todo.create({
                 data: {
                 title,
+                userId,
                 completed: false,
                 },
             });
@@ -23,9 +35,12 @@ export default async function HomePage() {
         {todos?.length ? (
           todos.map((todo) => <TodoComponent todo={todo} key={todo.id} toggleCompleted={async todo => {
               "use server"
+                const { userId} = auth();
+                if (!userId) throw new Error("No user id");
                 await db.todo.update({
                     where: {
-                    id: todo.id,
+                        id: todo.id,
+                        userId,
                     },
                     data: {
                     completed: !todo.completed,
@@ -35,10 +50,13 @@ export default async function HomePage() {
               revalidatePath("/dashboard");
           }} deleteTodo={async todo => {
               "use server"
-
+              const { userId} = auth();
+              if (!userId) throw new Error("No user id");
               await db.todo.delete({
                     where: {
                     id: todo.id,
+                        userId,
+
                     },
                 });
 
